@@ -24,6 +24,7 @@ def verify():
 def webhook():
 
     # endpoint for processing incoming messaging events
+    add_persistent_menu()
 
     data = request.get_json()
     log(data)  # you may not want to log every incoming message in production, but it's good for testing
@@ -40,6 +41,22 @@ def webhook():
                     message_text = messaging_event["message"]["text"]  # the message's text
 
                     send_message(sender_id, "got it, thanks!")
+
+
+
+                if messaging_event.get('postback'):
+                        payload_text = messaging_event["postback"][
+                            "payload"]  # the payload's text
+                        if payload_text == 'DEV_ISSUE':
+                            
+                            try:
+                                msg = "Don't worry"
+                            except KeyError:
+                                msg = "Please tell me what your issue is."
+                            send_message(messaging_event["sender"]["id"], msg)
+                            
+
+
 
                 if messaging_event.get("delivery"):  # delivery confirmation
                     pass
@@ -75,6 +92,56 @@ def send_message(recipient_id, message_text):
     if r.status_code != 200:
         log(r.status_code)
         log(r.text)
+
+
+
+
+
+def add_persistent_menu():
+    params = {
+        "access_token": os.environ["PAGE_ACCESS_TOKEN"]
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    data = json.dumps({
+                      "setting_type": "call_to_actions",
+                      "thread_state": "existing_thread",
+                      "call_to_actions": [
+                         
+                          {
+                              "type": "postback",
+                              "title": "Latest News",
+                              "payload": "PAYLOAD_RECRUIT"
+                          },
+                          {
+                              "type": "postback",
+                              "title": "Facing some development issue",
+                              "payload": "DEV_ISSUE"
+                          },
+                          {
+                              "type": "web_url",
+                              "title": "View Website",
+                              "url": "http://awaaziitkgp.org/"
+                          }
+                      ]
+                      })
+    r = requests.post("https://graph.facebook.com/v2.6/me/thread_settings",
+                      params=params, headers=headers, data=data)
+    if r.status_code != 200:
+        error_msg = "Got following error while adding persistent menu:\nStatus Code : {}\nText : {}".format(
+            r.status_code, r.text)
+        slack_notification(error_msg)
+        log(r.status_code)
+        log(r.text)
+
+
+
+
+
+
+
+
 
 
 def log(message):  # simple wrapper for logging to stdout on heroku
